@@ -80,16 +80,80 @@ function App() {
     }
 
     try {
-      const response = await axios.post(`${API}/orders`, {
+      // Get current origin for success/cancel URLs
+      const originUrl = window.location.origin;
+      
+      const response = await axios.post(`${API}/checkout/session`, {
+        subscription_plan_id: subscriptionId,
         user_email: user.email,
-        subscription_plan_id: subscriptionId
+        origin_url: originUrl
       });
-      alert('Order created successfully! Payment integration coming soon.');
-      fetchUserOrders(user.email);
+      
+      // Redirect to Stripe checkout
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
     } catch (error) {
       alert('Purchase failed: ' + error.response?.data?.detail || 'Unknown error');
     }
   };
+
+  // Function to get URL parameters
+  const getUrlParameter = (name) => {
+    const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    const results = regex.exec(window.location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+  };
+
+  // Function to poll payment status
+  const pollPaymentStatus = async (sessionId, attempts = 0) => {
+    const maxAttempts = 5;
+    const pollInterval = 2000; // 2 seconds
+
+    if (attempts >= maxAttempts) {
+      alert('Payment status check timed out. Please check your email for confirmation.');
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${API}/checkout/status/${sessionId}`);
+      
+      if (response.data.payment_status === 'paid') {
+        alert('Payment successful! Thank you for your purchase.');
+        // Refresh orders if user is logged in
+        if (user) {
+          fetchUserOrders(user.email);
+        }
+        // Remove session_id from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      } else if (response.data.status === 'expired') {
+        alert('Payment session expired. Please try again.');
+        return;
+      }
+
+      // If payment is still pending, continue polling
+      setTimeout(() => pollPaymentStatus(sessionId, attempts + 1), pollInterval);
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+      alert('Error checking payment status. Please try again.');
+    }
+  };
+
+  // Check if we're returning from Stripe
+  const checkReturnFromStripe = () => {
+    const sessionId = getUrlParameter('session_id');
+    if (sessionId) {
+      pollPaymentStatus(sessionId);
+    }
+  };
+
+  // Check for return from Stripe on component mount
+  useEffect(() => {
+    checkReturnFromStripe();
+  }, []);
 
   const handleLogout = () => {
     setUser(null);
