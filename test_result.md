@@ -222,8 +222,6 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Stripe payment integration"
-    - "Order management system"
     - "Payment integration UI"
     - "Order history display"
   stuck_tasks: []
