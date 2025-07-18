@@ -70,6 +70,25 @@ class Order(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+class PaymentTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    session_id: Optional[str] = None
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    subscription_plan_id: str
+    amount: float
+    currency: str = "usd"
+    status: str = "pending"  # pending, completed, failed, expired
+    payment_status: str = "pending"  # pending, paid, failed, expired
+    metadata: Optional[Dict[str, str]] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CheckoutRequest(BaseModel):
+    subscription_plan_id: str
+    user_email: Optional[str] = None
+    origin_url: str
+
 class OrderCreate(BaseModel):
     user_email: Optional[str] = None
     subscription_plan_id: str
